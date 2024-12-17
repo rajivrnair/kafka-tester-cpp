@@ -1,0 +1,11 @@
+{
+    "type": "record",
+    "name": "Message",
+    "namespace": "tutorial",
+    "doc": "A basic message record",
+    "fields": [
+        {"name": "id", "type": "string", "doc": "Unique identifier for the message"},
+        {"name": "content", "type": "string", "doc": "Message content"},
+        {"name": "timestamp", "type": "long", "doc": "Unix timestamp when message was created"}
+    ]
+}
