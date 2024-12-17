@@ -48,3 +48,24 @@ $ ldconfig -p | grep avro
         libavro.so.23 (libc6,x86-64) => /lib/x86_64-linux-gnu/libavro.so.23
         libavro.so (libc6,x86-64) => /lib/x86_64-linux-gnu/libavro.so
 ```
+
+## Sample Output
+```
+$ ./kafka_producer 
+Message queued for delivery
+Flushing pending messages...
+Message delivered to topic test_topic [0] at offset <1> with content {0x5fb363632118}
+Message delivered successfully
+
+$ ./kafka_producer 
+Message queued for delivery
+Flushing pending messages...
+Message delivered to topic test_topic [0] at offset <2> with content {0x55bbda038118}. Status: 2
+Message delivered successfully
+
+$ ./kafka_producer 
+Message queued for delivery
+Flushing pending messages...
+Message delivered to topic test_topic [0] at offset <3> with content {0x5e04a89be118}. Status: 2
+Message delivered successfully
+```
