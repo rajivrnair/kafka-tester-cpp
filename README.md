@@ -9,6 +9,7 @@ sudo apt-get install cmake g++
 sudo apt-get install libboost-dev libboost-filesystem-dev
 sudo apt-get install libboost-iostreams-dev libboost-program-options-dev
 sudo apt-get install libboost-iostreams-dev libboost-program-options-dev libboost-system-dev
+sudo apt-get install nlohmann-json3-dev
 ```
 
 ## Avro
@@ -29,9 +30,11 @@ $ avrogencpp -i message.avsc -o Message.hh -n IG
 
 # Compile the program
 $ g++ -o kafka_producer kafka_producer.cpp -lrdkafka++ -lavrocpp
+$ g++ -o kafka_consumer kafka_consumer.cpp -lrdkafka++ -lavrocpp -pthread
 
 # Run it
 $ ./kafka_producer
+$ ./kafka_consumer
 ```
 
 ## Errors
