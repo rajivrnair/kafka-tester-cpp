@@ -10,6 +10,7 @@ sudo apt-get install libboost-dev libboost-filesystem-dev
 sudo apt-get install libboost-iostreams-dev libboost-program-options-dev
 sudo apt-get install libboost-iostreams-dev libboost-program-options-dev libboost-system-dev
 sudo apt-get install nlohmann-json3-dev
+sudo apt-get install libwebsocketpp-dev libboost-all-dev
 ```
 
 ## Avro
@@ -25,12 +26,8 @@ See [Avro CPP Page](https://avro.apache.org/docs/1.12.0/api/cpp/html/) to instal
 # Pull and run Kafka using Docker Compose
 $ docker-compose up -d
 
-# create the message
-$ avrogencpp -i message.avsc -o Message.hh -n IG
-
-# Compile the program
-$ g++ -o kafka_producer kafka_producer.cpp -lrdkafka++ -lavrocpp
-$ g++ -o kafka_consumer kafka_consumer.cpp -lrdkafka++ -lavrocpp -pthread
+# Build it
+$ ./build.sh
 
 # Run it
 $ ./kafka_producer
@@ -55,20 +52,21 @@ $ ldconfig -p | grep avro
 ## Sample Output
 ```
 $ ./kafka_producer 
-Message queued for delivery
-Flushing pending messages...
-Message delivered to topic test_topic [0] at offset <1> with content {0x5fb363632118}
-Message delivered successfully
+KP: Generated ID: ID-1472
+KP: Message queued for delivery
+KP: Flushing pending messages...
+KP: Message delivered to topic test_topic [0] at offset <17> with content {0x5c372b467118}. Status: 2
+KP: Message delivered successfully
 
-$ ./kafka_producer 
-Message queued for delivery
-Flushing pending messages...
-Message delivered to topic test_topic [0] at offset <2> with content {0x55bbda038118}. Status: 2
-Message delivered successfully
 
-$ ./kafka_producer 
-Message queued for delivery
-Flushing pending messages...
-Message delivered to topic test_topic [0] at offset <3> with content {0x5e04a89be118}. Status: 2
-Message delivered successfully
+$ ./kafka_consumer 
+WS: WebSocket server listening on port 9002
+KC: Consumer initialized and subscribed to topic: test_topic
+KC: Waiting for a single message...
+
+WS: Broadcasted message: {"content":"Hello, Kafka!","id":"ID-1472","timestamp":1734675172}
+
+KC: Message forwarded to WebSocket clients
+KC: Message processed. Consumer will now exit.
+KC: Successfully consumed one message. Exiting.
 ```

@@ -1,22 +1,23 @@
 #include <iostream>
+#include <thread>
 #include <string>
 #include <memory>
-#include <thread>
-#include <chrono>
 #include <nlohmann/json.hpp>
 #include <librdkafka/rdkafkacpp.h>
 #include <avro/Decoder.hh>
 #include <avro/Specific.hh>
 #include "Message.hh"
+#include "WebSocketServer.hpp"
+
 
 using json = nlohmann::json;
 
 class KafkaConsumer {
 public:
     KafkaConsumer(const std::string& brokers, const std::string& topic,
-                 const std::string& group_id)
-        : brokers_(brokers), topic_(topic), group_id_(group_id), running_(false) {
-
+                 const std::string& group_id, WebSocketServer& ws_server)
+        : brokers_(brokers), topic_(topic), group_id_(group_id),
+          ws_server_(ws_server) {
         init();
     }
 
@@ -26,9 +27,9 @@ public:
         }
     }
 
-    // New method for consuming a single message
-    bool consumeSingleMessage(int timeout_ms = 5000) {
-        std::cout << "Waiting for message..." << std::endl;
+    // Consume a single message and return true if successful
+    bool consumeOne(int timeout_ms = 5000) {
+        std::cout << "KC: Waiting for a single message..." << std::endl;
 
         std::unique_ptr<RdKafka::Message> msg(
             consumer_->consume(timeout_ms));
@@ -36,18 +37,19 @@ public:
         switch (msg->err()) {
             case RdKafka::ERR_NO_ERROR:
                 deserializeAndProcess(msg->payload(), msg->len());
+                std::cout << "KC: Message processed. Consumer will now exit." << std::endl;
                 return true;
 
             case RdKafka::ERR__TIMED_OUT:
-                std::cout << "Timeout waiting for message" << std::endl;
+                std::cout << "KC: Timeout waiting for message" << std::endl;
                 return false;
 
             case RdKafka::ERR__PARTITION_EOF:
-                std::cout << "Reached end of partition" << std::endl;
+                std::cout << "KC: Reached end of partition" << std::endl;
                 return false;
 
             default:
-                std::cerr << "Consumer error: " << msg->errstr() << std::endl;
+                std::cerr << "KC: Consumer error: " << msg->errstr() << std::endl;
                 return false;
         }
     }
@@ -72,18 +74,18 @@ private:
         // Create consumer
         consumer_.reset(RdKafka::KafkaConsumer::create(conf.get(), errstr));
         if (!consumer_) {
-            throw std::runtime_error("Failed to create consumer: " + errstr);
+            throw std::runtime_error("KC: Failed to create consumer: " + errstr);
         }
 
         // Subscribe to topic
         std::vector<std::string> topics = {topic_};
         RdKafka::ErrorCode err = consumer_->subscribe(topics);
         if (err != RdKafka::ERR_NO_ERROR) {
-            throw std::runtime_error("Failed to subscribe to topic: " +
+            throw std::runtime_error("KC: Failed to subscribe to topic: " +
                                    std::string(RdKafka::err2str(err)));
         }
 
-        std::cout << "Consumer initialized and subscribed to topic: " << topic_ << std::endl;
+        std::cout << "KC: Consumer initialized and subscribed to topic: " << topic_ << std::endl;
     }
 
     json messageToJson(const IG::Message& msg) {
@@ -106,12 +108,18 @@ private:
             IG::Message msg;
             avro::decode(*decoder, msg);
 
-            // Convert to JSON and print
+            // Convert to JSON
             json j = messageToJson(msg);
-            std::cout << "Received message: " << j.dump(2) << std::endl;
+
+            // Forward to WebSocket server
+            if (ws_server_.broadcast(j.dump())) {
+                std::cout << "KC: Message forwarded to WebSocket clients" << std::endl;
+            } else {
+                std::cerr << "KC: Failed to forward message to WebSocket clients" << std::endl;
+            }
 
         } catch (const std::exception& e) {
-            std::cerr << "Error deserializing message: " << e.what() << std::endl;
+            std::cerr << "KC: Error processing message: " << e.what() << std::endl;
         }
     }
 
@@ -119,27 +127,40 @@ private:
     std::string topic_;
     std::string group_id_;
     std::unique_ptr<RdKafka::KafkaConsumer> consumer_;
-    bool running_;
+    WebSocketServer& ws_server_;
 };
 
 int main() {
     try {
-        // Create consumer
-        KafkaConsumer consumer("localhost:9092", "test_topic", "my-consumer-group");
+        // Create and start WebSocket server in a separate thread
+        WebSocketServer ws_server;
+        std::thread ws_thread([&ws_server]() {
+            ws_server.run();
+        });
 
-        // Try to consume a single message with 5 second timeout
-        bool received = consumer.consumeSingleMessage(5000);
+        // Wait a moment for WebSocket server to start
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        // Create consumer
+        KafkaConsumer consumer("localhost:9092", "test_topic", "my-consumer-group", ws_server);
+
+        // Consume a single message with 5 second timeout
+        bool received = consumer.consumeOne(5000);
+
+        // Stop WebSocket server
+        ws_server.stop();
+        ws_thread.join();
 
         if (received) {
-            std::cout << "Successfully consumed message. Shutting down." << std::endl;
+            std::cout << "KC: Successfully consumed one message. Exiting." << std::endl;
+            return 0;
         } else {
-            std::cout << "No message received within timeout. Shutting down." << std::endl;
+            std::cout << "KC: No message received within timeout. Exiting." << std::endl;
+            return 1;
         }
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
-
-    return 0;
 }

@@ -12,9 +12,9 @@ class DeliveryReportCb : public RdKafka::DeliveryReportCb {
 public:
     void dr_cb(RdKafka::Message &message) {
         if (message.err())
-            std::cerr << "Message delivery failed: " << message.errstr() << std::endl;
+            std::cerr << "KP: Message delivery failed: " << message.errstr() << std::endl;
         else
-            std::cout << "Message delivered to topic " << message.topic_name() << 
+            std::cout << "KP: Message delivered to topic " << message.topic_name() << 
                      " [" << message.partition() << "] at offset <" << 
                      message.offset() << "> with content {" << message.payload() << "}. Status: " << message.status() << std::endl;
     }
@@ -60,7 +60,7 @@ int main() {
     // Create producer
     std::unique_ptr<RdKafka::Producer> producer(RdKafka::Producer::create(conf.get(), errstr));
     if (!producer) {
-        std::cerr << "Failed to create producer: " << errstr << std::endl;
+        std::cerr << "KP: Failed to create producer: " << errstr << std::endl;
         return 1;
     }
 
@@ -71,7 +71,7 @@ int main() {
     );
     
     if (!topic) {
-        std::cerr << "Failed to create topic: " << errstr << std::endl;
+        std::cerr << "KP: Failed to create topic: " << errstr << std::endl;
         return 1;
     }
 
@@ -104,27 +104,30 @@ int main() {
     );
 
     if (err != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "Failed to produce message: " << RdKafka::err2str(err) << std::endl;
+        std::cerr << "KP: Failed to produce message: " << RdKafka::err2str(err) << std::endl;
         return 1;
     } else {
-        std::cout << "Message queued for delivery" << std::endl;
+        std::cout << "KP: Message queued for delivery" << std::endl;
     }
 
     // Flush pending messages
-    std::cout << "Flushing pending messages..." << std::endl;
+    std::cout << "KP: Flushing pending messages..." << std::endl;
     RdKafka::ErrorCode flush_err = producer->flush(10000);
     if (flush_err != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "Failed to flush messages: " << RdKafka::err2str(flush_err) << std::endl;
+        std::cerr << "KP: Failed to flush messages: " << RdKafka::err2str(flush_err) << std::endl;
         return 1;
     }
 
-    std::cout << "Message delivered successfully" << std::endl;
+    std::cout << "KP: Message delivered successfully" << std::endl;
     return 0;
 }
 
 std::string createRandomId() {
     srand(time(0));
     int random_num = rand() % 10000 + 1;
+    std::string id = "ID-" + std::to_string(random_num);
+    
+    std::cout << "KP: Generated ID: " + id << std::endl;
 
-    return "ID-" + std::to_string(random_num);
+    return id;
 }
