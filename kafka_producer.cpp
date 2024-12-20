@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <memory>
+#include <cstdlib>
 #include <ctime>
 #include <librdkafka/rdkafkacpp.h>
 #include <avro/Encoder.hh>
@@ -18,6 +19,8 @@ public:
                      message.offset() << "> with content {" << message.payload() << "}. Status: " << message.status() << std::endl;
     }
 };
+
+std::string createRandomId();
 
 int main() {
     std::string errstr;
@@ -74,7 +77,8 @@ int main() {
 
     // Create test message
     IG::Message msg;
-    msg.id = "123";
+
+    msg.id = createRandomId();
     msg.content = "Hello, Kafka!";
     msg.timestamp = static_cast<int64_t>(std::time(nullptr));
 
@@ -116,4 +120,11 @@ int main() {
 
     std::cout << "Message delivered successfully" << std::endl;
     return 0;
+}
+
+std::string createRandomId() {
+    srand(time(0));
+    int random_num = rand() % 10000 + 1;
+
+    return "ID-" + std::to_string(random_num);
 }
